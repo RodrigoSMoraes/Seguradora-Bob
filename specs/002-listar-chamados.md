@@ -1,10 +1,18 @@
-# Especificação — Rota `GET /tickets` e função `listTickets`
+# Especificação — Rotas `GET /tickets` e `GET /agent/tickets` e função `listTickets`
 
-Esta spec descreve como reimplementar a **listagem paginada de chamados** do backend: a função `listTickets` em `backend/src/controllers/tickets.js` e o registro das rotas que a usam em `backend/src/routes/index.js`.
+Esta spec descreve como reimplementar a **listagem paginada de chamados** do backend. São **três entregas obrigatórias**:
+
+| # | Entrega | Arquivo |
+|---|---------|---------|
+| 1 | Função `listTickets` + exportação | `backend/src/controllers/tickets.js` |
+| 2 | Rota **`GET /api/tickets`** (frontend, JWT) | `backend/src/routes/index.js` |
+| 3 | Rota **`GET /api/agent/tickets`** (agente Orchestrate, X-API-Key) | `backend/src/routes/index.js` |
+
+> ⚠️ **As duas rotas são obrigatórias.** A tarefa só está concluída quando `GET /api/tickets` **e** `GET /api/agent/tickets` respondem 200. Entregar uma só rota é implementação **incompleta**: o frontend ou o agente do watsonx Orchestrate (ferramenta `listarChamados`) ficaria sem listagem.
 
 ## Prompt sugerido para o Bob
 
-> Leia `specs/002-listar-chamados.md` e implemente a função `listTickets` e o registro das rotas exatamente como especificado. Altere **somente** os trechos indicados na seção 2. Não modifique as outras funções, os helpers de `lib/validation.js` nem as outras rotas. Ao final, execute os testes da seção 7 e me mostre o resultado.
+> Leia `specs/002-listar-chamados.md` e faça as 3 entregas da tabela inicial: a função `listTickets` (exportada) e **as duas rotas**, `GET /tickets` (com `requireAuth`) e `GET /agent/tickets` (com `requireOrchestrateKey`). Antes de editar, verifique o estado atual dos arquivos conforme a seção 2.1, para não duplicar nada. Altere **somente** os trechos indicados. Não modifique as outras funções, os helpers de `lib/validation.js` nem as outras rotas. Ao final, preencha o checklist da seção 8 e execute os testes da seção 7, mostrando o resultado de **ambas** as rotas.
 
 ## 1. Contexto
 
@@ -18,10 +26,23 @@ Esta spec descreve como reimplementar a **listagem paginada de chamados** do bac
 
 | Arquivo | O que fazer |
 |---------|-------------|
-| `backend/src/controllers/tickets.js` | Criar a função `async function listTickets(req, res)` **entre** `createTicket` e `getTicketByProtocol`, e incluir `listTickets` no `module.exports`, logo depois de `createTicket` |
-| `backend/src/routes/index.js` | Registrar as duas rotas da seção 4, nas posições indicadas |
+| `backend/src/controllers/tickets.js` | Criar a função `async function listTickets(req, res)` **entre** `createTicket` e `getTicketByProtocol`. Garantir que `listTickets` esteja no `module.exports`, logo depois de `createTicket` |
+| `backend/src/routes/index.js` | Garantir que **as duas** rotas da seção 4 estejam registradas, cada uma uma única vez, nas posições indicadas |
 
 **Não** criar arquivos novos, dependências novas, camadas de service/repository ou helpers novos.
+
+### 2.1 Verificação do estado atual (fazer antes de editar)
+
+O código pode ter sido apagado só em parte. Verifique cada item e aja conforme a tabela, para **nunca duplicar** uma linha:
+
+| Verificação | Se existir | Se não existir |
+|-------------|------------|----------------|
+| `async function listTickets` em `controllers/tickets.js` | Substituir o corpo pelo da seção 6 | Criar a função na posição indicada |
+| `listTickets,` dentro do `module.exports` de `controllers/tickets.js` | Manter | Adicionar logo após `createTicket,` |
+| `router.get('/tickets', ...)` em `routes/index.js` | Conferir se é igual à seção 4 e corrigir se preciso | Adicionar |
+| `router.get('/agent/tickets', ...)` em `routes/index.js` | Conferir se é igual à seção 4 e corrigir se preciso | Adicionar |
+
+> Se o nome `listTickets` estiver no `module.exports` sem a função existir, o backend nem sobe: `ReferenceError: listTickets is not defined`. Se uma rota usar `ticketController.listTickets` sem a função exportada, o servidor sobe, mas a rota responde 500 `Erro interno do servidor` e o log mostra `TypeError: fn is not a function` (vindo do `wrap`). Os dois erros desaparecem quando as 3 entregas estão completas.
 
 ## 3. Dependências que já existem (apenas usar)
 
@@ -47,18 +68,52 @@ Se algum desses imports tiver sido apagado junto com a função, restaure-o exat
 
 ## 4. Rotas (`backend/src/routes/index.js`)
 
-Os handlers são sempre envolvidos pelo `wrap(...)` que já existe no arquivo, porque o Express 4 não captura erros de funções async.
+São **duas rotas distintas, as duas obrigatórias**, apontando para o **mesmo** handler `ticketController.listTickets`. O que muda entre elas é só o middleware de autenticação. Os handlers são sempre envolvidos pelo `wrap(...)` que já existe no arquivo, porque o Express 4 não captura erros de funções async.
 
-| Método | Caminho (o router é montado em `/api`) | Middleware | Posição no arquivo |
-|--------|----------------------------------------|-----------|--------------------|
-| GET | `/agent/tickets` | `requireOrchestrateKey` | logo após `router.post('/agent/tickets', ...)` |
-| GET | `/tickets` | `requireAuth` | logo após `router.post('/tickets', ...)` e **antes** de `/tickets/id/:id` e `/tickets/:protocol` |
+| # | Método | Caminho no router | URL final | Middleware | Cliente | Posição no arquivo |
+|---|--------|-------------------|-----------|-----------|---------|--------------------|
+| 4.1 | GET | `/agent/tickets` | `/api/agent/tickets` | `requireOrchestrateKey` | Agente watsonx Orchestrate (`listarChamados` no `openapi.yaml`) | bloco "Rotas do Orchestrate", logo após `router.post('/agent/tickets', ...)` e antes de `router.get('/agent/tickets/:protocol', ...)` |
+| 4.2 | GET | `/tickets` | `/api/tickets` | `requireAuth` | Frontend (tela Chamados) | bloco "Rotas do Frontend → // Chamados", logo após `router.post('/tickets', ...)` e **antes** de `/tickets/id/:id` e `/tickets/:protocol` |
+
+### 4.1 Rota do agente
 
 ```js
 router.get('/agent/tickets', requireOrchestrateKey, wrap(ticketController.listTickets));
-// ...
+```
+
+### 4.2 Rota do frontend
+
+```js
 router.get('/tickets', requireAuth, wrap(ticketController.listTickets));
 ```
+
+### 4.3 Como os blocos devem ficar
+
+```js
+router.post('/agent/tickets', requireOrchestrateKey, wrap(ticketController.createTicket));
+router.get('/agent/tickets', requireOrchestrateKey, wrap(ticketController.listTickets));          // ◀ 4.1
+router.get('/agent/tickets/:protocol', requireOrchestrateKey, wrap(ticketController.getTicketByProtocol));
+router.patch('/agent/tickets/:protocol', requireOrchestrateKey, wrap(ticketController.updateTicket));
+router.post('/agent/tickets/:protocol/interactions', requireOrchestrateKey, wrap(ticketController.addInteraction));
+
+// ...
+
+// Chamados
+router.post('/tickets', requireAuth, wrap(ticketController.createTicket));
+router.get('/tickets', requireAuth, wrap(ticketController.listTickets));                          // ◀ 4.2
+router.get('/tickets/id/:id', requireAuth, wrap(ticketController.getTicketById));
+router.get('/tickets/:protocol', requireAuth, wrap(ticketController.getTicketByProtocol));
+router.patch('/tickets/:protocol', requireAuth, wrap(ticketController.updateTicket));
+router.post('/tickets/:protocol/interactions', requireAuth, wrap(ticketController.addInteraction));
+```
+
+(Os comentários `// ◀` servem só para esta spec. Não os coloque no código.)
+
+**Erros comuns a evitar:**
+- Registrar só uma das rotas.
+- Trocar os middlewares. A rota `/agent/...` usa **`requireOrchestrateKey`**; a `/tickets` usa **`requireAuth`**.
+- Criar uma função separada para o agente (ex.: `listTicketsAgent`). As duas rotas usam o **mesmo** `listTickets`.
+- Esquecer o `wrap(...)`.
 
 ## 5. Contrato HTTP
 
@@ -188,3 +243,16 @@ TOKEN=<access_token obtido em POST /api/auth/login>
 | 12 | `curl -s "$API/agent/tickets"` (sem chave) | 401 `API key inválida ou ausente` |
 | 13 | No frontend (`npm run dev:frontend`), abrir a tela **Chamados** | A lista carrega, os filtros e a busca funcionam e a paginação ("Página X de Y") navega. O frontend envia `limit=15`. |
 | 14 | `curl -s "$API/tickets/SEG-20240101-00001" -H "Authorization: Bearer $TOKEN"` | Continua funcionando: a rota de detalhe não foi afetada |
+| 15 | `curl -s "$API/tickets?limit=5" -H "Authorization: Bearer $TOKEN"` **e** `curl -s "$API/agent/tickets?limit=5" -H "X-API-Key: $KEY"` | As duas respondem 200 com **o mesmo** `total` e os mesmos `protocol` na mesma ordem |
+| 16 | `curl -s "$API/agent/tickets" -H "Authorization: Bearer $TOKEN"` | 401: a rota do agente **não** aceita JWT |
+| 17 | `curl -s "$API/tickets" -H "X-API-Key: $KEY"` | 401: a rota do frontend **não** aceita API key |
+
+## 8. Checklist de conclusão (o Bob deve confirmar cada item)
+
+- [ ] `controllers/tickets.js` tem **uma** `async function listTickets(req, res)`, entre `createTicket` e `getTicketByProtocol`.
+- [ ] `listTickets` aparece no `module.exports`.
+- [ ] `routes/index.js` tem **exatamente uma** linha `router.get('/agent/tickets', requireOrchestrateKey, wrap(ticketController.listTickets));`
+- [ ] `routes/index.js` tem **exatamente uma** linha `router.get('/tickets', requireAuth, wrap(ticketController.listTickets));`
+- [ ] Este comando retorna **2**: `grep -c "listTickets" backend/src/routes/index.js`
+- [ ] `npm run dev` sobe sem `ReferenceError`, e nenhuma das duas rotas responde 500 com `TypeError: fn is not a function` no log.
+- [ ] Os testes 1 e 2 (uma rota de cada tipo) e o 15 (as duas juntas) passaram.

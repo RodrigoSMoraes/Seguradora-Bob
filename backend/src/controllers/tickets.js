@@ -165,57 +165,7 @@ async function createTicket(req, res) {
  * GET /api/tickets
  * Lista chamados com filtros opcionais.
  */
-async function listTickets(req, res) {
-  const { status, priority, category, assignee_id, search } = req.query;
-  const cpf = onlyDigits(req.query.requester_cpf);
-  const page = toInt(req.query.page, 1, 1, 10000);
-  const limit = toInt(req.query.limit, 20, 1, 100);
 
-  const enumError =
-    checkEnum('status', status, STATUSES) ||
-    checkEnum('priority', priority, PRIORITIES) ||
-    checkEnum('category', category, CATEGORIES);
-  if (enumError) return res.status(400).json({ error: enumError });
-
-  const db = getAdminClient();
-  const offset = (page - 1) * limit;
-
-  let query = db
-    .from('tickets')
-    .select('*', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (status) query = query.eq('status', status);
-  if (priority) query = query.eq('priority', priority);
-  if (category) query = query.eq('category', category);
-  if (assignee_id) query = query.eq('assignee_id', assignee_id);
-  if (cpf) query = query.eq('requester_cpf', cpf);
-
-  const term = search ? sanitizeSearch(search) : '';
-  if (term) {
-    query = query.or(
-      ['requester_name', 'title', 'protocol', 'policy_number', 'requester_cpf']
-        .map(col => `${col}.ilike.%${term}%`)
-        .join(',')
-    );
-  }
-
-  const { data, error, count } = await query;
-
-  if (error) {
-    console.error('Erro ao listar tickets:', error);
-    return res.status(500).json({ error: 'Erro interno ao listar chamados' });
-  }
-
-  return res.json({
-    tickets: data,
-    total: count || 0,
-    page,
-    limit,
-    pages: Math.ceil((count || 0) / limit),
-  });
-}
 
 /**
  * GET /api/tickets/:protocol
@@ -396,7 +346,6 @@ async function addInteraction(req, res) {
 
 module.exports = {
   createTicket,
-  listTickets,
   getTicketByProtocol,
   getTicketById,
   updateTicket,

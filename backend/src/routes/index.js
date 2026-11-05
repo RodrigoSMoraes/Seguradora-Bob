@@ -15,7 +15,6 @@ const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch
  * Estas rotas são chamadas pelo agente do watsonx Orchestrate.
  */
 router.post('/agent/tickets', requireOrchestrateKey, wrap(ticketController.createTicket));
-router.get('/agent/tickets', requireOrchestrateKey, wrap(ticketController.listTickets));
 router.get('/agent/tickets/:protocol', requireOrchestrateKey, wrap(ticketController.getTicketByProtocol));
 router.patch('/agent/tickets/:protocol', requireOrchestrateKey, wrap(ticketController.updateTicket));
 router.post('/agent/tickets/:protocol/interactions', requireOrchestrateKey, wrap(ticketController.addInteraction));
@@ -29,7 +28,6 @@ router.get('/dashboard/stats', requireAuth, wrap(dashboardController.getStats));
 
 // Chamados
 router.post('/tickets', requireAuth, wrap(ticketController.createTicket));
-router.get('/tickets', requireAuth, wrap(ticketController.listTickets));
 router.get('/tickets/id/:id', requireAuth, wrap(ticketController.getTicketById));
 router.get('/tickets/:protocol', requireAuth, wrap(ticketController.getTicketByProtocol));
 router.patch('/tickets/:protocol', requireAuth, wrap(ticketController.updateTicket));
