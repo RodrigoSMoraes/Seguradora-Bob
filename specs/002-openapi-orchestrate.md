@@ -32,9 +32,7 @@ Seguradora/
 ## 1. Regras gerais
 
 1. **Formato:** OpenAPI **3.0.3** em YAML (o Orchestrate não aceita bem 3.1). Indentação de 2 espaços.
-2. **Dois ambientes:** todas as rotas ficam sob o prefixo `/api`, então `servers` tem duas entradas, **nesta ordem**:
-   1. Produção no Vercel — **`https://seguradora-blush.vercel.app/api`** (primeira da lista, usada por padrão pelo Orchestrate).
-   2. Desenvolvimento local — **`http://localhost:3001/api`** (backend rodando na porta 3001).
+2. **Ambiente:** todas as rotas ficam sob o prefixo `/api`, então `servers` tem uma única entrada apontando para produção: **`https://seguradora-blush.vercel.app/api`**.
 3. **Escopo:** **somente as 5 rotas do agente** (`/agent/...`). As rotas do frontend (`/tickets`, `/dashboard`, `/auth`) e de infraestrutura (`/health`, `/openapi.yaml`) **não** entram.
 4. **Idioma:** `summary` e `description` em **português do Brasil**. São esses textos que o LLM do Orchestrate lê para decidir quando chamar cada ferramenta, então devem dizer **quando usar** a operação.
 5. **`operationId` em português, camelCase**: é o nome da ferramenta no Orchestrate.
@@ -56,15 +54,11 @@ info:
     Autenticação: header `X-API-Key` com o valor da variável de ambiente
     `ORCHESTRATE_API_KEY` configurada no Vercel.
 
-    Ambientes:
-    - Produção: https://seguradora-blush.vercel.app
-    - Local: http://localhost:3001
+    Ambiente: https://seguradora-blush.vercel.app
 
 servers:
   - url: https://seguradora-blush.vercel.app/api
     description: Produção (Vercel)
-  - url: http://localhost:3001/api
-    description: Desenvolvimento local
 
 security:
   - ApiKeyAuth: []
@@ -382,5 +376,4 @@ Códigos de status sempre entre aspas (`"200"`). Ordem das chaves em cada opera�
 ## 6. Relação com o backend
 
 - O backend publica este arquivo em `GET https://seguradora-blush.vercel.app/api/openapi.yaml` (o `vercel.json` inclui o arquivo na função com `includeFiles: "openapi.yaml"`).
-- A rota substitui o placeholder `https://SEU-PROJETO.vercel.app/api` pelo host atual. Como `servers` já traz as URLs de produção e local, **não use o placeholder**: o arquivo é servido sem alterações.
-- Localmente, o mesmo arquivo fica disponível em `GET http://localhost:3001/api/openapi.yaml`. O Orchestrate (serviço em nuvem) não alcança `localhost`; a entrada local serve para testes em ferramentas como Postman ou Swagger UI na máquina do desenvolvedor.
+- A rota substitui o placeholder `https://SEU-PROJETO.vercel.app/api` pelo host atual. Como `servers` já traz a URL de produção, **não use o placeholder**: o arquivo é servido sem alterações.
