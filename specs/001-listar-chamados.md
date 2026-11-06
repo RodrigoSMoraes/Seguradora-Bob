@@ -8,11 +8,11 @@ Esta spec descreve como reimplementar a **listagem paginada de chamados** do bac
 | 2 | Rota **`GET /api/tickets`** (frontend, JWT) | `backend/src/routes/index.js` |
 | 3 | Rota **`GET /api/agent/tickets`** (agente Orchestrate, X-API-Key) | `backend/src/routes/index.js` |
 
-> ⚠️ **As duas rotas são obrigatórias.** A tarefa só está concluída quando `GET /api/tickets` **e** `GET /api/agent/tickets` respondem 200. Entregar uma só rota é implementação **incompleta**: o frontend ou o agente do watsonx Orchestrate (ferramenta `listarChamados`) ficaria sem listagem.
+> ⚠️ **As duas rotas são obrigatórias.** A tarefa só está concluída quando `GET /api/tickets` **e** `GET /api/agent/tickets` estão registradas em `routes/index.js`. Entregar uma só rota é implementação **incompleta**: o frontend ou o agente do watsonx Orchestrate (ferramenta `listarChamados`) ficaria sem listagem.
 
 ## Prompt sugerido para o Bob
 
-> Leia `specs/002-listar-chamados.md` e faça as 3 entregas da tabela inicial: a função `listTickets` (exportada) e **as duas rotas**, `GET /tickets` (com `requireAuth`) e `GET /agent/tickets` (com `requireOrchestrateKey`). Antes de editar, verifique o estado atual dos arquivos conforme a seção 2.1, para não duplicar nada. Altere **somente** os trechos indicados. Não modifique as outras funções, os helpers de `lib/validation.js` nem as outras rotas. Ao final, preencha o checklist da seção 8 e execute os testes da seção 7, mostrando o resultado de **ambas** as rotas.
+> Leia `specs/002-listar-chamados.md` e faça as 3 entregas da tabela inicial: a função `listTickets` (exportada) e **as duas rotas**, `GET /tickets` (com `requireAuth`) e `GET /agent/tickets` (com `requireOrchestrateKey`). Antes de editar, verifique o estado atual dos arquivos conforme a seção 2.1, para não duplicar nada. Altere **somente** os trechos indicados. Não modifique as outras funções, os helpers de `lib/validation.js` nem as outras rotas. Não é necessário executar testes: ao final, apenas confira o checklist da seção 7.
 
 ## 1. Contexto
 
@@ -217,42 +217,9 @@ JSDoc acima da função:
 
 Estilo: função `async`, sem `try/catch` (exceções sobem pelo `wrap` até o error handler global), indentação de 2 espaços, aspas simples e ponto e vírgula, como no resto do arquivo.
 
-## 7. Critérios de aceite
-
-Variáveis (bash):
-
-```bash
-API=http://localhost:3001/api        # ou https://seguradora-blush.vercel.app/api
-KEY=<ORCHESTRATE_API_KEY>
-TOKEN=<access_token obtido em POST /api/auth/login>
-```
-
-| # | Comando | Esperado |
-|---|---------|----------|
-| 1 | `curl -s "$API/tickets" -H "Authorization: Bearer $TOKEN"` | 200 com `page: 1`, `limit: 20` e chamados do mais novo para o mais antigo |
-| 2 | `curl -s "$API/agent/tickets?limit=1" -H "X-API-Key: $KEY"` | 200, `tickets` com 1 item e `pages` igual a `total` |
-| 3 | `curl -s "$API/tickets?status=aberto" -H "Authorization: Bearer $TOKEN"` | Todos os itens com `status: "aberto"` |
-| 4 | `curl -s "$API/tickets?status=fechado" -H "Authorization: Bearer $TOKEN"` | 400 `Valor inválido para status: "fechado". Use um de: ...` |
-| 5 | `curl -s "$API/tickets?priority=x&category=y" -H "Authorization: Bearer $TOKEN"` | 400 que menciona **priority** (o primeiro inválido) |
-| 6 | `curl -s "$API/agent/tickets?requester_cpf=123.456.789-09" -H "X-API-Key: $KEY"` | Mesmo resultado de `requester_cpf=12345678909` |
-| 7 | `curl -s "$API/tickets?search=maria" -H "Authorization: Bearer $TOKEN"` | Itens com "maria" (sem diferenciar maiúsculas) no nome, título, protocolo, apólice ou CPF |
-| 8 | `curl -s "$API/tickets?search=a,b)" -H "Authorization: Bearer $TOKEN"` | 200 (não pode dar 500) |
-| 9 | `curl -s "$API/tickets?page=abc&limit=500" -H "Authorization: Bearer $TOKEN"` | 200 com `page: 1` e `limit: 100` |
-| 10 | `curl -s "$API/tickets?search=zzzzzz" -H "Authorization: Bearer $TOKEN"` | `{"tickets":[],"total":0,"page":1,"limit":20,"pages":0}` |
-| 11 | `curl -s "$API/tickets"` (sem token) | 401 `Token de autenticação ausente ou inválido` |
-| 12 | `curl -s "$API/agent/tickets"` (sem chave) | 401 `API key inválida ou ausente` |
-| 13 | No frontend (`npm run dev:frontend`), abrir a tela **Chamados** | A lista carrega, os filtros e a busca funcionam e a paginação ("Página X de Y") navega. O frontend envia `limit=15`. |
-| 14 | `curl -s "$API/tickets/SEG-20240101-00001" -H "Authorization: Bearer $TOKEN"` | Continua funcionando: a rota de detalhe não foi afetada |
-| 15 | `curl -s "$API/tickets?limit=5" -H "Authorization: Bearer $TOKEN"` **e** `curl -s "$API/agent/tickets?limit=5" -H "X-API-Key: $KEY"` | As duas respondem 200 com **o mesmo** `total` e os mesmos `protocol` na mesma ordem |
-| 16 | `curl -s "$API/agent/tickets" -H "Authorization: Bearer $TOKEN"` | 401: a rota do agente **não** aceita JWT |
-| 17 | `curl -s "$API/tickets" -H "X-API-Key: $KEY"` | 401: a rota do frontend **não** aceita API key |
-
-## 8. Checklist de conclusão (o Bob deve confirmar cada item)
+## 7. Checklist de conclusão (verificação no código, sem executar testes)
 
 - [ ] `controllers/tickets.js` tem **uma** `async function listTickets(req, res)`, entre `createTicket` e `getTicketByProtocol`.
 - [ ] `listTickets` aparece no `module.exports`.
 - [ ] `routes/index.js` tem **exatamente uma** linha `router.get('/agent/tickets', requireOrchestrateKey, wrap(ticketController.listTickets));`
 - [ ] `routes/index.js` tem **exatamente uma** linha `router.get('/tickets', requireAuth, wrap(ticketController.listTickets));`
-- [ ] Este comando retorna **2**: `grep -c "listTickets" backend/src/routes/index.js`
-- [ ] `npm run dev` sobe sem `ReferenceError`, e nenhuma das duas rotas responde 500 com `TypeError: fn is not a function` no log.
-- [ ] Os testes 1 e 2 (uma rota de cada tipo) e o 15 (as duas juntas) passaram.

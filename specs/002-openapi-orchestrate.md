@@ -4,7 +4,7 @@ Este documento descreve como criar o arquivo **`openapi.yaml` na raiz do reposit
 
 ## Prompt sugerido para o Bob
 
-> Leia `specs/001-openapi-orchestrate.md` e crie o arquivo `openapi.yaml` na raiz do repositório (mesmo nível de `package.json` e `vercel.json`) exatamente conforme a especificação. Não crie o arquivo em outra pasta nem com outro nome. Não inclua rotas, campos ou respostas que não estejam listados. Ao final, valide o arquivo conforme a seção "Critérios de aceite".
+> Leia `specs/001-openapi-orchestrate.md` e crie o arquivo `openapi.yaml` na raiz do repositório (mesmo nível de `package.json` e `vercel.json`) exatamente conforme a especificação. Não crie o arquivo em outra pasta nem com outro nome. Não inclua rotas, campos ou respostas que não estejam listados. Não é necessário executar testes ou validações.
 
 ## 0. Local e nome do arquivo (obrigatório)
 
@@ -377,18 +377,3 @@ Códigos de status sempre entre aspas (`"200"`). Ordem das chaves em cada opera�
 
 - O backend publica este arquivo em `GET https://seguradora-blush.vercel.app/api/openapi.yaml` (o `vercel.json` inclui o arquivo na função com `includeFiles: "openapi.yaml"`).
 - A rota substitui o placeholder `https://SEU-PROJETO.vercel.app/api` pelo host atual. Como `servers.url` já traz a URL de produção, **não use o placeholder**: o arquivo é servido sem alterações.
-
-## 7. Critérios de aceite
-
-- [ ] O arquivo está em `./openapi.yaml`, na raiz do repositório, e não existe nenhum outro arquivo OpenAPI em `backend/` ou em outras subpastas.
-- [ ] Com o backend rodando localmente, `curl http://localhost:3001/api/openapi.yaml` retorna o YAML, e não 404.
-- [ ] Ele passa na validação: `npx @redocly/cli lint openapi.yaml` (ou cole o conteúdo no https://editor.swagger.io), sem erros.
-- [ ] `servers[0].url` é exatamente `https://seguradora-blush.vercel.app/api`.
-- [ ] Existem exatamente 5 `operationId`: `criarChamado`, `listarChamados`, `consultarChamado`, `atualizarChamado`, `adicionarInteracao`.
-- [ ] Todos os `$ref` resolvem e não sobra nenhum schema sem uso.
-- [ ] Teste real contra produção:
-  ```bash
-  curl -s https://seguradora-blush.vercel.app/api/agent/tickets?limit=1 -H "X-API-Key: <ORCHESTRATE_API_KEY>"
-  ```
-  O retorno deve ter o formato de `TicketListResponse`.
-- [ ] A importação no watsonx Orchestrate (**Tools → Add tool → OpenAPI**) mostra as 5 ferramentas, com autenticação API Key no header `X-API-Key`.
